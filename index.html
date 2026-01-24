@@ -57,7 +57,7 @@
         </div>
 
         <div id="release-container" class="space-y-6">
-            <div class="animate-pulse bg-white p-6 rounded-2xl border border-slate-200 h-40"></div>
+            <div id="loading-spinner" class="animate-pulse bg-white p-6 rounded-2xl border border-slate-200 h-40"></div>
         </div>
     </main>
 
@@ -83,7 +83,7 @@
                 <div>
                     <h4 class="font-bold text-sm mb-3 text-slate-800 uppercase tracking-wider text-[10px]">Kontak</h4>
                     <p class="text-slate-500 text-xs mb-2">Anggi Al' Ansori</p>
-                    <p class="text-slate-400 text-[10px]">Hikari Digitalindo</p>
+                    <p class="text-slate-400 text-[10px]">PT. USSI Pinbuk Prima Software</p>
                 </div>
             </div>
             <div class="border-t border-slate-100 pt-6 text-center text-slate-400 text-[10px]">
@@ -100,7 +100,6 @@
 
         marked.setOptions({ breaks: true, gfm: true });
 
-        // Fungsi Helper untuk Label Device
         function getDeviceLabel(fileName) {
             const name = fileName.toLowerCase();
             if (name.includes('v7a')) return "Older Devices (32-bit)";
@@ -111,14 +110,31 @@
 
         async function fetchReleases() {
             try {
-                const res = await fetch(`https://api.github.com/repos/${repo}/releases`);
+                const res = await fetch(`https://api.github.com/repos/${repo}/releases`, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+                
+                if (!res.ok) throw new Error(`Status: ${res.status}`);
+                
                 allData = await res.json();
                 render(allData);
-            } catch (e) { container.innerHTML = "<p class='text-center text-red-500 py-10'>Gagal terhubung ke API GitHub.</p>"; }
+            } catch (e) { 
+                container.innerHTML = `
+                    <div class="text-center p-10 bg-red-50 border border-red-200 rounded-2xl">
+                        <p class="text-red-600 font-bold mb-2 text-sm">Gagal terhubung ke API GitHub.</p>
+                        <p class="text-red-400 text-xs">${e.message}</p>
+                        <button onclick="fetchReleases()" class="mt-4 px-4 py-2 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors">Coba Lagi</button>
+                    </div>`;
+            }
         }
 
         function render(data) {
             container.innerHTML = '';
+            if (data.length === 0) {
+                container.innerHTML = "<p class='text-center text-slate-500 py-10'>Tidak ada rilis ditemukan.</p>";
+                return;
+            }
+
             data.forEach((rel, idx) => {
                 const isLatest = idx === 0;
                 const date = new Date(rel.published_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -175,7 +191,11 @@
 
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            render(allData.filter(r => r.tag_name.toLowerCase().includes(term) || (r.name && r.name.toLowerCase().includes(term))));
+            const filtered = allData.filter(r => 
+                r.tag_name.toLowerCase().includes(term) || 
+                (r.name && r.name.toLowerCase().includes(term))
+            );
+            render(filtered);
         });
 
         fetchReleases();
